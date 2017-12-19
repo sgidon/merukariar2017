@@ -1,0 +1,198 @@
+z<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>test - A-Frame AR</title>
+    <meta name="description" content="test - A-Frame AR">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://aframe.io/releases/0.7.0/aframe.min.js"></script>
+    <script src="https://rawgit.com/google-ar/three.ar.js/master/dist/three.ar.js"></script>
+    <script src="https://rawgit.com/chenzlabs/aframe-ar/master/dist/aframe-ar.js"></script>
+    <script src="https://unpkg.com/aframe-html-shader@0.2.0/dist/aframe-html-shader.min.js"></script>
+    <script src="https://unpkg.com/aframe-look-at-component@0.5.1/dist/aframe-look-at-component.min.js"></script>
+    <style>
+      .info {
+        position: absolute;
+        height: 25px;
+        width: 100vw;
+        top: 0px;
+        left: 0px;
+        text-align: center;
+        vertical-align: middle;
+        z-index: 999;
+        background-color: gray;
+        color: white;
+      }
+    </style>
+    <script>
+      var scene, canvas;
+      var ar_raycaster;
+      var mark;
+      var info;
+      var line = null;
+      var plane = null;
+      var startPos
+      var endPos = null;
+      var startCameraPos;
+      var inputComp = false;
+
+      AFRAME.registerComponent("test",{
+        schema: {},
+        init: function() {
+
+        },
+        tick: function() {
+
+        }
+      })
+    </script>
+ </head>
+  <body>
+    <a-scene id="scene" ar test style="z-index:999">
+
+      <a-asset>
+        <a-mixin id="lineObj" line="color:red"></a-mixin>
+      </a-asset>
+
+      <!-- RayCaster -->
+      <a-entity id="ar-raycaster" ar-raycaster raycaster="objects:none"></a-entity>
+      <a-ring id="mark" rotation="-90 0 0" radius-inner="0.01" radius-outer="0.02" material="side: double"></a-ring>
+      
+      
+    </a-scene>
+
+    <!-- 各種情報の表示 -->
+<!--
+<div id="info" class="info">infomation.</div>
+-->
+    <input id="commentText" type="text" value="" placeholder="コメントを入力して、画面をタップしてください" style="position: absolute; width:80vw; height:30px; left:5vw; top:10vh; z-index:999">
+    <input id="btn" type="button" value="OK" onclick="inputComplete();" style="position: absolute; width:10vw; height:30px; right:5vw; top:10vh; z-index:999">
+    
+    <!-- HTML2Canvas -->
+    <div style="background: rgba(255,255,255,0.01);color: #333; width: 100%; height: 100%; position: fixed; left: 0; top: 0; z-index: -1; overflow: hidden">
+      <center><div id="htmlElement" style="background: rgba(255,255,255,0.01); color: #333; font-size: 48px">コメント</div></center>
+    </div>
+  </body>
+
+  <script>
+    ar_raycaster = document.querySelector('#ar-raycaster');
+    mark = document.querySelector('#mark');
+    info = document.querySelector("#info");
+    scene = document.querySelector("#scene");
+    canvas = scene.canvas;
+
+    // 画面タッチ時にコメントを設置。
+    window.addEventListener('click', function(evt) {
+      if (!line && !endPos) {
+        // 線描画スタート
+        startPos = mark.getAttribute("position").clone();
+        startCameraPos = document.querySelector('[camera]').object3D.position.clone();
+        line = document.createElement("a-entity");
+        line.setAttribute("mixin","lineObj");
+        AFRAME.utils.entity.setComponentProperty(line, 'line.start', startPos);
+        AFRAME.utils.entity.setComponentProperty(line, 'line.end', startPos);
+        scene.appendChild(line);
+        
+      } else if (line && !endPos) {
+        // 日本語入力中
+        line = null;
+        mark.object3D.visible = false;
+        endPos = mark.object3D.position.clone();
+        document.querySelector("#commentText").focus();
+      } else {
+        // 入力完了待ち
+        if ((inputComp) && (document.querySelector("#commentText").value != "")) {
+          inputComment();
+          document.querySelector("#commentText").value = "";
+          endPos = null;
+          mark.object3D.visible = true;
+          plane = null;
+          inputComp = false;
+        } else {
+          inputComp = false;
+        }
+    }
+
+//       if (!line && !endPos) {
+        
+//         startPos = null;
+//         startCameraPos = null;
+//         line = null;
+//         plane = null;
+//         mark.object3D.visible = true;
+//       } else {
+//         // コメント編集していない
+//         if (document.querySelector("#commentText").value != "") {
+//           inputComment(); 
+//           startPos = mark.getAttribute("position").clone();
+//           startCameraPos = document.querySelector('[camera]').object3D.position.clone();
+//           line = document.createElement("a-entity");
+//           line.setAttribute("mixin","lineObj");
+//           AFRAME.utils.entity.setComponentProperty(line, 'line.start', startPos);
+//           AFRAME.utils.entity.setComponentProperty(line, 'line.end', startPos);
+//           scene.appendChild(line);
+
+//           plane = document.createElement("a-plane");
+//           plane.setAttribute("position", startPos);
+//           plane.setAttribute("scale", "0.2 0.1 0.1");
+//           plane.setAttribute("material","shader: html; target: #htmlElement; opacity:0.99");
+//           plane.setAttribute("look-at", "[camera]");
+//           scene.appendChild(plane);
+
+//           document.querySelector("#commentText").value = "";
+//           mark.object3D.visible = false;
+//         }
+        
+//       }
+
+    })
+
+    // コメント入力したら描画した線の終端に反映する。
+    function inputComment() {
+      var htmlElement = document.querySelector("#htmlElement");
+      htmlElement.innerHTML = document.querySelector("#commentText").value;
+
+      plane = document.createElement("a-plane");
+      plane.setAttribute("position", endPos);
+      plane.setAttribute("scale", "0.2 0.1 0.1");
+      plane.setAttribute("material","shader: html; target: #htmlElement; opacity:0.99");
+      plane.setAttribute("look-at", "[camera]");
+      scene.appendChild(plane);
+    }
+
+    function inputComplete() {
+      inputComp = true;
+    }
+    
+    // リングの位置を更新する。
+    ar_raycaster.addEventListener('raycaster-intersection', function(evt) {
+      var pos = evt.detail.intersections[0].point; 
+      mark.setAttribute('color', 'green');
+      if (line) {
+        // 線描画中
+        var cPos = document.querySelector('[camera]').object3D.position;
+        var newPosX = cPos.x - startCameraPos.x + startPos.x;
+        var newPosY = cPos.y - startCameraPos.y + startPos.y;
+        var newPosZ = cPos.z - startCameraPos.z + startPos.z;
+        console.log(newPosX + " " + newPosY + " " + newPosZ);
+        // plane.setAttribute('position',newPosX + " " + newPosY + " " + newPosZ);
+        mark.setAttribute('position', newPosX + " " + newPosY + " " + newPosZ); 
+        AFRAME.utils.entity.setComponentProperty(line, 'line.end', newPosX + " " + newPosY + " " + newPosZ);
+      } else {
+        // 線描画中以外
+        mark.setAttribute('position', pos); 
+      }
+    });
+
+    // トラッキングが外れたらマーカーを赤くする。
+    ar_raycaster.addEventListener('raycaster-intersection-cleared', function (evt) {
+      if (!line) {
+        // Turn the mark red.  FIXME: lerp position
+        mark.setAttribute('color', 'red');
+      }
+    });  
+    
+  </script>
+</html>
